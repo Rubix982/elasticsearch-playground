@@ -1,0 +1,218 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Log Events Schema",
+  "description": "Schema for application logs, access logs, and system metrics",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Unique log entry identifier"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Log entry timestamp"
+    },
+    "type": {
+      "type": "string",
+      "enum": ["application", "access", "metric", "security"],
+      "description": "Type of log entry"
+    },
+    "level": {
+      "type": "string",
+      "enum": ["DEBUG", "INFO", "WARN", "ERROR", "FATAL"],
+      "description": "Log level (for application logs)"
+    },
+    "message": {
+      "type": "string",
+      "description": "Log message"
+    },
+    "service": {
+      "type": "string",
+      "description": "Service name"
+    },
+    "host": {
+      "type": "string",
+      "description": "Host/server name"
+    },
+    "environment": {
+      "type": "string",
+      "enum": ["production", "staging", "development", "test"],
+      "description": "Environment"
+    },
+    "thread": {
+      "type": "string",
+      "description": "Thread identifier"
+    },
+    "logger": {
+      "type": "string",
+      "description": "Logger name"
+    },
+    "correlation_id": {
+      "type": "string",
+      "description": "Correlation ID for tracing"
+    },
+    "session_id": {
+      "type": "string",
+      "description": "User session ID"
+    },
+    "user_id": {
+      "type": "integer",
+      "description": "User identifier"
+    },
+    "request_id": {
+      "type": "string",
+      "description": "Request identifier"
+    },
+    "duration_ms": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Operation duration in milliseconds"
+    },
+    "exception": {
+      "type": "object",
+      "properties": {
+        "type": { "type": "string" },
+        "message": { "type": "string" },
+        "stack_trace": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "request": {
+      "type": "object",
+      "description": "HTTP request details (for access logs)",
+      "properties": {
+        "method": { "type": "string" },
+        "url": { "type": "string" },
+        "query_string": { "type": "string" },
+        "protocol": { "type": "string" },
+        "headers": {
+          "type": "object",
+          "properties": {
+            "user_agent": { "type": "string" },
+            "referer": { "type": "string" },
+            "accept_language": { "type": "string" },
+            "x_forwarded_for": { "type": "string" }
+          }
+        }
+      }
+    },
+    "response": {
+      "type": "object",
+      "description": "HTTP response details (for access logs)",
+      "properties": {
+        "status_code": { "type": "integer" },
+        "content_length": { "type": "integer" },
+        "content_type": { "type": "string" },
+        "cache_status": { "type": "string" }
+      }
+    },
+    "metrics": {
+      "type": "object",
+      "description": "System metrics (for metric logs)",
+      "properties": {
+        "cpu": {
+          "type": "object",
+          "properties": {
+            "usage_percent": { "type": "number" },
+            "load_1m": { "type": "number" },
+            "load_5m": { "type": "number" },
+            "load_15m": { "type": "number" }
+          }
+        },
+        "memory": {
+          "type": "object",
+          "properties": {
+            "usage_percent": { "type": "number" },
+            "used_mb": { "type": "integer" },
+            "available_mb": { "type": "integer" },
+            "swap_used_mb": { "type": "integer" }
+          }
+        },
+        "disk": {
+          "type": "object",
+          "properties": {
+            "usage_percent": { "type": "number" },
+            "read_iops": { "type": "integer" },
+            "write_iops": { "type": "integer" },
+            "read_throughput_mb": { "type": "number" },
+            "write_throughput_mb": { "type": "number" }
+          }
+        },
+        "network": {
+          "type": "object",
+          "properties": {
+            "rx_bytes": { "type": "integer" },
+            "tx_bytes": { "type": "integer" },
+            "rx_packets": { "type": "integer" },
+            "tx_packets": { "type": "integer" },
+            "errors": { "type": "integer" }
+          }
+        }
+      }
+    },
+    "geo": {
+      "type": "object",
+      "properties": {
+        "country": { "type": "string" },
+        "city": { "type": "string" },
+        "coordinates": {
+          "type": "object",
+          "properties": {
+            "lat": { "type": "number" },
+            "lon": { "type": "number" }
+          }
+        }
+      }
+    },
+    "tags": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Log tags"
+    },
+    "metadata": {
+      "type": "object",
+      "description": "Additional metadata"
+    }
+  },
+  "required": ["id", "timestamp", "type"],
+  "elasticsearch_mapping": {
+    "properties": {
+      "id": { "type": "keyword" },
+      "timestamp": { "type": "date" },
+      "type": { "type": "keyword" },
+      "level": { "type": "keyword" },
+      "message": {
+        "type": "text",
+        "analyzer": "standard",
+        "fields": {
+          "keyword": { "type": "keyword", "ignore_above": 256 }
+        }
+      },
+      "service": { "type": "keyword" },
+      "host": { "type": "keyword" },
+      "environment": { "type": "keyword" },
+      "correlation_id": { "type": "keyword" },
+      "session_id": { "type": "keyword" },
+      "user_id": { "type": "integer" },
+      "duration_ms": { "type": "integer" },
+      "request.method": { "type": "keyword" },
+      "request.url": {
+        "type": "text",
+        "fields": {
+          "keyword": { "type": "keyword", "ignore_above": 256 }
+        }
+      },
+      "response.status_code": { "type": "integer" },
+      "response.content_length": { "type": "integer" },
+      "metrics.cpu.usage_percent": { "type": "double" },
+      "metrics.memory.usage_percent": { "type": "double" },
+      "metrics.disk.usage_percent": { "type": "double" },
+      "geo.country": { "type": "keyword" },
+      "geo.coordinates": { "type": "geo_point" },
+      "tags": { "type": "keyword" }
+    }
+  }
+}

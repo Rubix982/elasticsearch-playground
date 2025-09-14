@@ -1,0 +1,194 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "News Article Schema",
+  "description": "Schema for news articles optimized for Elasticsearch",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Unique article identifier"
+    },
+    "headline": {
+      "type": "string",
+      "description": "Article headline"
+    },
+    "subheadline": {
+      "type": "string",
+      "description": "Article subheadline"
+    },
+    "content": {
+      "type": "object",
+      "properties": {
+        "lead": { "type": "string" },
+        "body": { "type": "string" },
+        "summary": { "type": "string" },
+        "word_count": { "type": "integer", "minimum": 0 }
+      },
+      "required": ["body"]
+    },
+    "author": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "bio": { "type": "string" },
+        "twitter": { "type": "string" },
+        "experience_years": { "type": "integer", "minimum": 0 },
+        "specializations": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      },
+      "required": ["name"]
+    },
+    "publication": {
+      "type": "object",
+      "properties": {
+        "source": { "type": "string" },
+        "section": { "type": "string" },
+        "subsection": { "type": "string" },
+        "edition": { "type": "string" },
+        "page_number": { "type": "integer", "minimum": 1 }
+      },
+      "required": ["source", "section"]
+    },
+    "timestamps": {
+      "type": "object",
+      "properties": {
+        "created": { "type": "string", "format": "date-time" },
+        "published": { "type": "string", "format": "date-time" },
+        "last_updated": { "type": "string", "format": "date-time" },
+        "embargo_until": { "type": "string", "format": "date-time" }
+      },
+      "required": ["published"]
+    },
+    "classification": {
+      "type": "object",
+      "properties": {
+        "category": { "type": "string" },
+        "tags": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "topics": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "urgency": {
+          "type": "string",
+          "enum": ["low", "medium", "high", "breaking"]
+        },
+        "content_type": {
+          "type": "string",
+          "enum": ["news", "analysis", "opinion", "feature", "breaking"]
+        }
+      },
+      "required": ["category"]
+    },
+    "location": {
+      "type": "object",
+      "properties": {
+        "dateline": { "type": "string" },
+        "country": { "type": "string" },
+        "region": { "type": "string" },
+        "coordinates": {
+          "type": "object",
+          "properties": {
+            "lat": { "type": "number" },
+            "lon": { "type": "number" }
+          }
+        }
+      }
+    },
+    "engagement": {
+      "type": "object",
+      "properties": {
+        "views": { "type": "integer", "minimum": 0 },
+        "unique_views": { "type": "integer", "minimum": 0 },
+        "shares": {
+          "type": "object",
+          "properties": {
+            "facebook": { "type": "integer", "minimum": 0 },
+            "twitter": { "type": "integer", "minimum": 0 },
+            "linkedin": { "type": "integer", "minimum": 0 },
+            "reddit": { "type": "integer", "minimum": 0 },
+            "email": { "type": "integer", "minimum": 0 }
+          }
+        },
+        "comments_count": { "type": "integer", "minimum": 0 },
+        "read_time": { "type": "string" }
+      }
+    },
+    "analytics": {
+      "type": "object",
+      "properties": {
+        "sentiment": {
+          "type": "string",
+          "enum": ["positive", "negative", "neutral"]
+        },
+        "readability_score": { "type": "number" },
+        "engagement_score": { "type": "number" },
+        "virality_coefficient": { "type": "number" },
+        "bounce_rate": { "type": "number", "minimum": 0, "maximum": 1 },
+        "time_on_page": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "status": {
+      "type": "string",
+      "enum": ["published", "draft", "archived", "scheduled"]
+    },
+    "visibility": {
+      "type": "object",
+      "properties": {
+        "public": { "type": "boolean" },
+        "paywall": { "type": "boolean" },
+        "subscriber_only": { "type": "boolean" },
+        "region_restricted": { "type": "boolean" }
+      }
+    }
+  },
+  "required": ["id", "headline", "content", "author", "publication", "timestamps", "classification"],
+  "elasticsearch_mapping": {
+    "properties": {
+      "id": { "type": "keyword" },
+      "headline": {
+        "type": "text",
+        "analyzer": "standard",
+        "fields": {
+          "keyword": { "type": "keyword" },
+          "suggest": { "type": "completion" }
+        }
+      },
+      "content.body": {
+        "type": "text",
+        "analyzer": "standard"
+      },
+      "content.summary": {
+        "type": "text",
+        "analyzer": "standard"
+      },
+      "content.word_count": { "type": "integer" },
+      "author.name": {
+        "type": "keyword",
+        "fields": {
+          "text": { "type": "text" }
+        }
+      },
+      "publication.source": { "type": "keyword" },
+      "publication.section": { "type": "keyword" },
+      "timestamps.published": { "type": "date" },
+      "timestamps.last_updated": { "type": "date" },
+      "classification.category": { "type": "keyword" },
+      "classification.tags": { "type": "keyword" },
+      "classification.urgency": { "type": "keyword" },
+      "classification.content_type": { "type": "keyword" },
+      "location.country": { "type": "keyword" },
+      "location.coordinates": { "type": "geo_point" },
+      "engagement.views": { "type": "integer" },
+      "engagement.shares.total": { "type": "integer" },
+      "analytics.sentiment": { "type": "keyword" },
+      "analytics.engagement_score": { "type": "double" },
+      "status": { "type": "keyword" }
+    }
+  }
+}

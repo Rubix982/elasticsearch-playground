@@ -1,0 +1,100 @@
+groups:
+  - name: elasticsearch.rules
+    rules:
+      # Elasticsearch Cluster Health
+      - alert: ElasticsearchClusterRed
+        expr: elasticsearch_cluster_health_status{color="red"} == 1
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Elasticsearch cluster status is RED"
+          description: "Elasticsearch cluster {{ $labels.cluster }} status is RED. Some primary shards are unassigned."
+
+      - alert: ElasticsearchClusterYellow
+        expr: elasticsearch_cluster_health_status{color="yellow"} == 1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Elasticsearch cluster status is YELLOW"
+          description: "Elasticsearch cluster {{ $labels.cluster }} status is YELLOW. Some replica shards are unassigned."
+
+      # Node Health
+      - alert: ElasticsearchNodeDown
+        expr: up{job="elasticsearch"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Elasticsearch node is down"
+          description: "Elasticsearch node {{ $labels.instance }} has been down for more than 1 minute."
+
+      # Disk Space
+      - alert: ElasticsearchHighDiskUsage
+        expr: (elasticsearch_filesystem_data_size_bytes - elasticsearch_filesystem_data_free_bytes) / elasticsearch_filesystem_data_size_bytes * 100 > 85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Elasticsearch high disk usage"
+          description: "Elasticsearch node {{ $labels.instance }} disk usage is above 85% ({{ $value }}%)"
+
+      - alert: ElasticsearchCriticalDiskUsage
+        expr: (elasticsearch_filesystem_data_size_bytes - elasticsearch_filesystem_data_free_bytes) / elasticsearch_filesystem_data_size_bytes * 100 > 95
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Elasticsearch critical disk usage"
+          description: "Elasticsearch node {{ $labels.instance }} disk usage is above 95% ({{ $value }}%)"
+
+      # Memory Usage
+      - alert: ElasticsearchHighMemoryUsage
+        expr: elasticsearch_jvm_memory_used_bytes{area="heap"} / elasticsearch_jvm_memory_max_bytes{area="heap"} * 100 > 85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Elasticsearch high memory usage"
+          description: "Elasticsearch node {{ $labels.instance }} heap memory usage is above 85% ({{ $value }}%)"
+
+      # Search Performance
+      - alert: ElasticsearchSlowQueries
+        expr: increase(elasticsearch_indices_search_query_time_seconds[5m]) / increase(elasticsearch_indices_search_query_total[5m]) > 1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Elasticsearch slow queries detected"
+          description: "Average query time on {{ $labels.instance }} is above 1 second over the last 5 minutes"
+
+      # Indexing Performance
+      - alert: ElasticsearchSlowIndexing
+        expr: increase(elasticsearch_indices_indexing_index_time_seconds[5m]) / increase(elasticsearch_indices_indexing_index_total[5m]) > 0.5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Elasticsearch slow indexing detected"
+          description: "Average indexing time on {{ $labels.instance }} is above 500ms over the last 5 minutes"
+
+      # Rejected Operations
+      - alert: ElasticsearchRejectedOperations
+        expr: increase(elasticsearch_thread_pool_rejected_count[5m]) > 10
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Elasticsearch rejected operations"
+          description: "Elasticsearch node {{ $labels.instance }} has rejected {{ $value }} operations in the last 5 minutes"
+
+      # Index Health
+      - alert: ElasticsearchTooManyIndices
+        expr: elasticsearch_cluster_health_number_of_indices > 1000
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Too many Elasticsearch indices"
+          description: "Elasticsearch cluster has {{ $value }} indices, consider implementing index lifecycle management"

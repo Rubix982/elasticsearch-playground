@@ -1,0 +1,54 @@
+server:
+  port: 8083
+  host: "0.0.0.0"
+  read_timeout: 30s
+  write_timeout: 30s
+  shutdown_timeout: 10s
+
+elasticsearch:
+  urls:
+    - "http://localhost:9200"
+  username: ""
+  password: ""
+  api_key: ""
+  tls_config:
+    insecure_skip_verify: true
+
+redis:
+  addr: "localhost:6379"
+  password: ""
+  db: 0
+  pool_size: 10
+
+logging:
+  level: "info"
+  format: "json"
+  output: "stdout"
+
+search:
+  default_size: 10
+  max_size: 1000
+  timeout: "30s"
+  enable_profiling: false
+  cache_results: true
+
+cache:
+  enabled: true
+  ttl: 300s
+  max_size: 1000
+
+tracing:
+  enabled: true
+  service_name: "search-api"
+  environment: "development"
+  jaeger_endpoint: "http://localhost:14268/api/traces"
+  sampling_rate: 1.0
+  max_tag_length: 1024
+  batch_timeout: 1s
+  max_queue_size: 2048
+  max_packet_size: 65000
+
+performance:
+  max_concurrent_searches: 100
+  bulk_size: 1000
+  worker_pool_size: 10

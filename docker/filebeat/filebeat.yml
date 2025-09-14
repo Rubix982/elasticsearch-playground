@@ -1,0 +1,23 @@
+filebeat.inputs:
+  - type: container
+    paths:
+      - '/var/lib/docker/containers/*/*.log'
+    processors:
+      - add_docker_metadata:
+          host: "unix:///var/run/docker.sock"
+
+output.elasticsearch:
+  hosts: ["elasticsearch:9200"]
+  index: "filebeat-logs-%{+yyyy.MM.dd}"
+
+setup.template.name: "filebeat-logs"
+setup.template.pattern: "filebeat-logs-*"
+setup.template.enabled: true
+
+logging.level: info
+logging.to_files: true
+logging.files:
+  path: /var/log/filebeat
+  name: filebeat
+  keepfiles: 7
+  permissions: 0644

@@ -1,0 +1,319 @@
+version: '3.8'
+
+services:
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.1
+    container_name: es-playground-elasticsearch
+    environment:
+      - node.name=es-playground-node
+      - cluster.name=es-playground-cluster
+      - discovery.type=single-node
+      - bootstrap.memory_lock=true
+      - "ES_JAVA_OPTS=-Xms1g -Xmx1g"
+      - xpack.security.enabled=false
+      - xpack.security.enrollment.enabled=false
+      # Write-optimization settings
+      - indices.memory.index_buffer_size=20%
+      - indices.breaker.total.limit=80%
+      - thread_pool.write.size=8 
+      - thread_pool.write.queue_size=200
+      - cluster.routing.allocation.disk.watermark.low=85%
+      - cluster.routing.allocation.disk.watermark.high=90%
+      - cluster.routing.allocation.disk.watermark.flood_stage=95%
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+      - ./docker/elasticsearch/config:/usr/share/elasticsearch/config
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    networks:
+      - es-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.11.1
+    container_name: es-playground-kibana
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+      - SERVER_NAME=kibana
+      - SERVER_HOST=0.0.0.0
+    ports:
+      - "5601:5601"
+    networks:
+      - es-network
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:5601/api/status || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # Redis for caching and session storage
+  redis:
+    image: redis:7-alpine
+    container_name: es-playground-redis
+    ports:
+      - "6379:6379"
+    networks:
+      - es-network
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+
+  # PostgreSQL for relational data
+  postgres:
+    image: postgres:15-alpine
+    container_name: es-playground-postgres
+    environment:
+      - POSTGRES_DB=es_playground
+      - POSTGRES_USER=playground
+      - POSTGRES_PASSWORD=playground123
+    ports:
+      - "5432:5432"
+    networks:
+      - es-network
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres/init:/docker-entrypoint-initdb.d
+
+  # Filebeat for log shipping (optional)
+  filebeat:
+    image: docker.elastic.co/beats/filebeat:8.11.1
+    container_name: es-playground-filebeat
+    user: root
+    networks:
+      - es-network
+    volumes:
+      - ./docker/filebeat/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    profiles:
+      - monitoring
+
+  # Logstash for data processing (optional)
+  logstash:
+    image: docker.elastic.co/logstash/logstash:8.11.1
+    container_name: es-playground-logstash
+    networks:
+      - es-network
+    volumes:
+      - ./docker/logstash/pipeline:/usr/share/logstash/pipeline:ro
+      - ./docker/logstash/config/logstash.yml:/usr/share/logstash/config/logstash.yml:ro
+    ports:
+      - "5044:5044"
+      - "9600:9600"
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    profiles:
+      - monitoring
+
+  # Prometheus for metrics collection
+  prometheus:
+    image: prom/prometheus:v2.47.2
+    container_name: es-playground-prometheus
+    ports:
+      - "9090:9090"
+    networks:
+      - es-network
+    volumes:
+      - ./docker/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./docker/prometheus/alerts:/etc/prometheus/alerts:ro
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=30d'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--web.enable-lifecycle'
+      - '--web.enable-admin-api'
+    profiles:
+      - monitoring
+
+  # Grafana for visualization
+  grafana:
+    image: grafana/grafana:10.2.0
+    container_name: es-playground-grafana
+    ports:
+      - "3000:3000"
+    networks:
+      - es-network
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=playground123
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_INSTALL_PLUGINS=grafana-piechart-panel,grafana-worldmap-panel,grafana-clock-panel
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./docker/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./docker/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    depends_on:
+      - prometheus
+    profiles:
+      - monitoring
+
+  # Node Exporter for system metrics
+  node-exporter:
+    image: prom/node-exporter:v1.6.1
+    container_name: es-playground-node-exporter
+    ports:
+      - "9100:9100"
+    networks:
+      - es-network
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.rootfs=/rootfs'
+      - '--path.sysfs=/host/sys'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+    profiles:
+      - monitoring
+
+  # Elasticsearch Exporter for ES metrics
+  elasticsearch-exporter:
+    image: quay.io/prometheuscommunity/elasticsearch-exporter:v1.6.0
+    container_name: es-playground-es-exporter
+    ports:
+      - "9114:9114"
+    networks:
+      - es-network
+    environment:
+      - ES_URI=http://elasticsearch:9200
+      - ES_ALL=true
+      - ES_INDICES=true
+      - ES_SHARDS=true
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    profiles:
+      - monitoring
+
+  # Redis Exporter for Redis metrics
+  redis-exporter:
+    image: oliver006/redis_exporter:v1.55.0
+    container_name: es-playground-redis-exporter
+    ports:
+      - "9121:9121"
+    networks:
+      - es-network
+    environment:
+      - REDIS_ADDR=redis://redis:6379
+    depends_on:
+      - redis
+    profiles:
+      - monitoring
+
+  # Postgres Exporter for PostgreSQL metrics
+  postgres-exporter:
+    image: quay.io/prometheuscommunity/postgres-exporter:v0.15.0
+    container_name: es-playground-postgres-exporter
+    ports:
+      - "9187:9187"
+    networks:
+      - es-network
+    environment:
+      - DATA_SOURCE_NAME=postgresql://playground:playground123@postgres:5432/es_playground?sslmode=disable
+    depends_on:
+      - postgres
+    profiles:
+      - monitoring
+
+  # AlertManager for alerting
+  alertmanager:
+    image: prom/alertmanager:v0.26.0
+    container_name: es-playground-alertmanager
+    ports:
+      - "9093:9093"
+    networks:
+      - es-network
+    volumes:
+      - ./docker/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - alertmanager_data:/alertmanager
+    command:
+      - '--config.file=/etc/alertmanager/alertmanager.yml'
+      - '--storage.path=/alertmanager'
+      - '--web.external-url=http://localhost:9093'
+    profiles:
+      - monitoring
+
+  # Jaeger for distributed tracing
+  jaeger:
+    image: jaegertracing/all-in-one:1.51
+    container_name: es-playground-jaeger
+    ports:
+      - "16686:16686"  # Jaeger UI
+      - "14268:14268"  # Jaeger collector HTTP
+      - "14250:14250"  # Jaeger collector gRPC
+      - "6831:6831/udp"   # Jaeger agent UDP
+      - "6832:6832/udp"   # Jaeger agent UDP
+    networks:
+      - es-network
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+      - SPAN_STORAGE_TYPE=memory
+      - MEMORY_MAX_TRACES=50000
+      - QUERY_BASE_PATH=/
+    command:
+      [
+        "--memory.max-traces=50000",
+        "--query.base-path=/",
+        "--collector.otlp.enabled=true"
+      ]
+    profiles:
+      - tracing
+
+  # Write Performance Monitor (enhanced with Prometheus metrics)
+  perf-monitor:
+    build:
+      context: ./docker/perf-monitor
+      dockerfile: Dockerfile
+    container_name: es-playground-perf-monitor
+    ports:
+      - "8090:8090"  # Prometheus metrics endpoint
+    environment:
+      - ELASTICSEARCH_URL=http://elasticsearch:9200
+      - MONITORING_INTERVAL=30s
+      - PROMETHEUS_PORT=8090
+    networks:
+      - es-network
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    profiles:
+      - performance
+    volumes:
+      - ./performance-logs:/app/logs
+
+volumes:
+  elasticsearch_data:
+    driver: local
+  redis_data:
+    driver: local
+  postgres_data:
+    driver: local
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local
+  alertmanager_data:
+    driver: local
+
+networks:
+  es-network:
+    driver: bridge

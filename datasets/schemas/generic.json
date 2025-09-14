@@ -1,0 +1,140 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Generic Document Schema",
+  "description": "Generic schema for documents of various sizes optimized for write performance testing",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Unique document identifier"
+    },
+    "title": {
+      "type": "string",
+      "description": "Document title"
+    },
+    "content": {
+      "type": "string",
+      "description": "Main document content"
+    },
+    "author": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "bio": { "type": "string" }
+      }
+    },
+    "metadata": {
+      "type": "object",
+      "properties": {
+        "category": { "type": "string" },
+        "tags": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "priority": {
+          "type": "string",
+          "enum": ["low", "medium", "high", "critical"]
+        },
+        "status": {
+          "type": "string",
+          "enum": ["active", "inactive", "pending", "archived"]
+        },
+        "views": { "type": "integer", "minimum": 0 },
+        "likes": { "type": "integer", "minimum": 0 },
+        "shares": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "timestamps": {
+      "type": "object",
+      "properties": {
+        "created": { "type": "string", "format": "date-time" },
+        "updated": { "type": "string", "format": "date-time" },
+        "published": { "type": "string", "format": "date-time" }
+      }
+    },
+    "location": {
+      "type": "object",
+      "properties": {
+        "country": { "type": "string" },
+        "city": { "type": "string" },
+        "coordinates": {
+          "type": "object",
+          "properties": {
+            "lat": { "type": "number" },
+            "lon": { "type": "number" }
+          }
+        }
+      }
+    },
+    "analytics": {
+      "type": "object",
+      "properties": {
+        "bounce_rate": { "type": "number", "minimum": 0, "maximum": 1 },
+        "time_on_page": { "type": "integer", "minimum": 0 },
+        "conversion_rate": { "type": "number", "minimum": 0, "maximum": 1 }
+      }
+    },
+    "size": {
+      "type": "string",
+      "enum": ["small", "medium", "large", "huge"],
+      "description": "Document size category for optimization testing"
+    },
+    "version": {
+      "type": "string",
+      "description": "Document version"
+    }
+  },
+  "required": ["id", "title"],
+  "elasticsearch_mapping": {
+    "properties": {
+      "id": { "type": "keyword" },
+      "title": {
+        "type": "text",
+        "analyzer": "standard",
+        "fields": {
+          "keyword": { "type": "keyword", "ignore_above": 256 },
+          "suggest": { "type": "completion" }
+        }
+      },
+      "content": {
+        "type": "text",
+        "analyzer": "standard"
+      },
+      "author.name": {
+        "type": "keyword",
+        "fields": {
+          "text": { "type": "text" }
+        }
+      },
+      "metadata.category": { "type": "keyword" },
+      "metadata.tags": { "type": "keyword" },
+      "metadata.priority": { "type": "keyword" },
+      "metadata.status": { "type": "keyword" },
+      "metadata.views": { "type": "integer" },
+      "metadata.likes": { "type": "integer" },
+      "timestamps.created": { "type": "date" },
+      "timestamps.updated": { "type": "date" },
+      "timestamps.published": { "type": "date" },
+      "location.country": { "type": "keyword" },
+      "location.city": { "type": "keyword" },
+      "location.coordinates": { "type": "geo_point" },
+      "analytics.bounce_rate": { "type": "double" },
+      "analytics.time_on_page": { "type": "integer" },
+      "analytics.conversion_rate": { "type": "double" },
+      "size": { "type": "keyword" },
+      "version": { "type": "keyword" }
+    }
+  },
+  "write_optimization_notes": {
+    "field_design": "Fields are designed for write-heavy workloads with minimal nesting",
+    "indexing_strategy": "Use keyword fields for exact matching, text fields for full-text search",
+    "bulk_operations": "Optimized for bulk indexing with consistent field structure",
+    "performance_tips": [
+      "Use bulk operations instead of individual document operations",
+      "Consider disabling _source if not needed for retrieval",
+      "Use appropriate refresh intervals for write-heavy workloads",
+      "Monitor segment count and merge policy for optimal performance"
+    ]
+  }
+}

@@ -1,0 +1,160 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "E-commerce Product Schema",
+  "description": "Schema for e-commerce product documents optimized for Elasticsearch",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Unique product identifier"
+    },
+    "sku": {
+      "type": "string",
+      "description": "Stock Keeping Unit"
+    },
+    "name": {
+      "type": "string",
+      "description": "Product name"
+    },
+    "description": {
+      "type": "string",
+      "description": "Full product description"
+    },
+    "short_description": {
+      "type": "string",
+      "description": "Brief product description"
+    },
+    "category": {
+      "type": "object",
+      "properties": {
+        "primary": { "type": "string" },
+        "subcategory": { "type": "string" },
+        "path": { "type": "string" }
+      },
+      "required": ["primary"]
+    },
+    "brand": {
+      "type": "string",
+      "description": "Product brand"
+    },
+    "price": {
+      "type": "object",
+      "properties": {
+        "current": { "type": "number", "minimum": 0 },
+        "original": { "type": "number", "minimum": 0 },
+        "currency": { "type": "string", "default": "USD" },
+        "discount_percentage": { "type": "integer", "minimum": 0, "maximum": 100 }
+      },
+      "required": ["current", "currency"]
+    },
+    "inventory": {
+      "type": "object",
+      "properties": {
+        "stock_quantity": { "type": "integer", "minimum": 0 },
+        "warehouse_location": { "type": "string" },
+        "restock_date": { "type": "string", "format": "date-time" },
+        "low_stock_threshold": { "type": "integer", "minimum": 0 }
+      },
+      "required": ["stock_quantity"]
+    },
+    "attributes": {
+      "type": "object",
+      "properties": {
+        "color": { "type": "string" },
+        "size": { "type": "string" },
+        "weight": { "type": "string" },
+        "dimensions": {
+          "type": "object",
+          "properties": {
+            "length": { "type": "number" },
+            "width": { "type": "number" },
+            "height": { "type": "number" },
+            "unit": { "type": "string" }
+          }
+        },
+        "material": { "type": "string" }
+      }
+    },
+    "images": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "url": { "type": "string", "format": "uri" },
+          "alt_text": { "type": "string" },
+          "is_primary": { "type": "boolean" }
+        },
+        "required": ["url"]
+      }
+    },
+    "reviews": {
+      "type": "object",
+      "properties": {
+        "average_rating": { "type": "number", "minimum": 0, "maximum": 5 },
+        "total_reviews": { "type": "integer", "minimum": 0 },
+        "rating_distribution": {
+          "type": "object",
+          "properties": {
+            "5_star": { "type": "integer", "minimum": 0 },
+            "4_star": { "type": "integer", "minimum": 0 },
+            "3_star": { "type": "integer", "minimum": 0 },
+            "2_star": { "type": "integer", "minimum": 0 },
+            "1_star": { "type": "integer", "minimum": 0 }
+          }
+        }
+      }
+    },
+    "status": {
+      "type": "string",
+      "enum": ["active", "inactive", "discontinued", "pre_order"]
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "updated_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "required": ["id", "name", "category", "price", "inventory", "status"],
+  "elasticsearch_mapping": {
+    "properties": {
+      "id": { "type": "keyword" },
+      "sku": { "type": "keyword" },
+      "name": {
+        "type": "text",
+        "analyzer": "standard",
+        "fields": {
+          "keyword": { "type": "keyword" },
+          "suggest": { "type": "completion" }
+        }
+      },
+      "description": {
+        "type": "text",
+        "analyzer": "standard"
+      },
+      "category.primary": { "type": "keyword" },
+      "category.subcategory": { "type": "keyword" },
+      "brand": {
+        "type": "keyword",
+        "fields": {
+          "text": { "type": "text" }
+        }
+      },
+      "price.current": { "type": "double" },
+      "price.original": { "type": "double" },
+      "price.currency": { "type": "keyword" },
+      "inventory.stock_quantity": { "type": "integer" },
+      "attributes.color": { "type": "keyword" },
+      "attributes.size": { "type": "keyword" },
+      "reviews.average_rating": { "type": "double" },
+      "reviews.total_reviews": { "type": "integer" },
+      "status": { "type": "keyword" },
+      "created_at": { "type": "date" },
+      "updated_at": { "type": "date" },
+      "analytics.page_views": { "type": "integer" },
+      "analytics.conversion_rate": { "type": "double" }
+    }
+  }
+}

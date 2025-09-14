@@ -1,0 +1,27 @@
+# Sample Datasets Directory
+
+This directory will contain generated datasets for testing write-optimization features.
+
+## Quick Start
+
+Generate your first dataset:
+```bash
+make generate-dataset TYPE=small COUNT=100
+```
+
+## Available Generators
+
+- **Generic Documents**: `make generate-dataset TYPE=mixed COUNT=10000`
+- **E-commerce Products**: `make generate-ecommerce`
+- **News Articles**: `make generate-news`
+- **Application Logs**: `make generate-logs`
+- **Performance Testing**: `make generate-performance`
+
+## File Sizes (Approximate)
+
+- Small documents: ~500 bytes each
+- Medium documents: ~5KB each
+- Large documents: ~50KB each
+- Huge documents: ~100KB+ each
+
+Generated files will appear here as `.ndjson` format optimized for bulk import into Elasticsearch.

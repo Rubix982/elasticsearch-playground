@@ -1,0 +1,81 @@
+groups:
+  - name: applications.rules
+    rules:
+      # Application Health
+      - alert: ApplicationDown
+        expr: up{job=~"index-explorer|cluster-explorer|search-api"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Application {{ $labels.job }} is down"
+          description: "Application {{ $labels.job }} on {{ $labels.instance }} has been down for more than 1 minute."
+
+      # High Response Time
+      - alert: HighResponseTime
+        expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket{job=~"index-explorer|cluster-explorer|search-api"}[5m])) > 1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High response time for {{ $labels.job }}"
+          description: "95th percentile response time for {{ $labels.job }} is above 1 second ({{ $value }}s)"
+
+      # High Error Rate
+      - alert: HighErrorRate
+        expr: rate(http_requests_total{status=~"5.."}[5m]) / rate(http_requests_total[5m]) * 100 > 5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High error rate for {{ $labels.job }}"
+          description: "Error rate for {{ $labels.job }} is above 5% ({{ $value }}%)"
+
+      # Search Performance
+      - alert: SlowSearchRequests
+        expr: histogram_quantile(0.95, rate(elasticsearch_search_duration_seconds_bucket[5m])) > 2
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Slow search requests detected"
+          description: "95th percentile search request duration is above 2 seconds ({{ $value }}s)"
+
+      # Bulk Operations Performance
+      - alert: SlowBulkOperations
+        expr: histogram_quantile(0.95, rate(elasticsearch_bulk_duration_seconds_bucket[5m])) > 5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Slow bulk operations detected"
+          description: "95th percentile bulk operation duration is above 5 seconds ({{ $value }}s)"
+
+      # Resource Usage
+      - alert: HighCPUUsage
+        expr: rate(process_cpu_seconds_total{job=~"index-explorer|cluster-explorer|search-api"}[5m]) * 100 > 80
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High CPU usage for {{ $labels.job }}"
+          description: "CPU usage for {{ $labels.job }} is above 80% ({{ $value }}%)"
+
+      - alert: HighMemoryUsage
+        expr: process_resident_memory_bytes{job=~"index-explorer|cluster-explorer|search-api"} / 1024 / 1024 > 500
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High memory usage for {{ $labels.job }}"
+          description: "Memory usage for {{ $labels.job }} is above 500MB ({{ $value }}MB)"
+
+      # Connection Pool Issues
+      - alert: ElasticsearchConnectionPoolExhausted
+        expr: elasticsearch_client_connections_active >= elasticsearch_client_connections_max * 0.9
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Elasticsearch connection pool nearly exhausted"
+          description: "Elasticsearch connection pool for {{ $labels.job }} is 90% full"
